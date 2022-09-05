@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup as bs
 from PIL import Image, ImageFont, ImageDraw
 from dateutil import parser
 from datetime import datetime, timedelta
+from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.options import Options
 
 
 class ImageGenerator:
@@ -45,7 +47,6 @@ class ImageGenerator:
                   fill="white", font=font, align="right")
         timeDifference = str(timeDifference)
         duration = ""
-        print(timeDifference)
         durationList = timeDifference
         if "days" in timeDifference:
             daysList = timeDifference.split(" days, ")
@@ -53,9 +54,7 @@ class ImageGenerator:
         if "days" in timeDifference:
             durationList = timeDifference.split(" days, ")
             durationList = durationList[1]
-        # print(durationList)
         durationList = durationList.split(":")
-        print("hi")
         if(durationList[0] != "00"):
             duration += str(durationList[0]) + " Hours "
         if(durationList[1] != "00"):
@@ -76,7 +75,7 @@ class ContestsRetreiver:
         for contest in codechefContests:
             if(datetime.now().date() == parser.parse(contest['start_time']).date()):
                 contestsJson.append(contest)
-        codeforcesContests = self.getContestsfromCodeforces()
+        codeforcesContests = self.getContestsfromCodeforcesApi()
         for contest in codeforcesContests:
             if(datetime.now().date() == parser.parse(contest['start_time']).date()):
                 contestsJson.append(contest)
@@ -88,7 +87,7 @@ class ContestsRetreiver:
         codechefContests = self.getContestsfromCodechef()
         for contest in codechefContests:
             contestsJson.append(contest)
-        codeforcesContests = self.getContestsfromCodeforces()
+        codeforcesContests = self.getContestsfromCodeforcesApi()
         for contest in codeforcesContests:
             contestsJson.append(contest)
 
@@ -97,9 +96,16 @@ class ContestsRetreiver:
     def getContestsfromCodechef(self):
         try:
             URL = "https://www.codechef.com/contests"
-            soup = bs(req.get(URL).content, 'lxml')
+            chrome_options = Options()
+            # Opens the browser up in background, this was done since codechef API loads the data in tables after sometime.
+            # in future CodeChef official API should be used.
+            chrome_options.add_argument("--headless")
+            with Chrome(options=chrome_options) as browser:
+                browser.get(URL)
+                html = browser.page_source
+            soup = bs(html, 'lxml')
             allTables = soup.find_all('table', attrs={'class': 'dataTable'})
-            presentTables = allTables[0]  # Present table is the first one
+            presentTables = allTables[1]  # Present table is the second one
             contests = []
             allRows = presentTables.find_all('tr')
             for row in allRows:
@@ -108,20 +114,22 @@ class ContestsRetreiver:
                 datas = row.find_all('td')
                 for data in datas:
                     strippedData.append(data.text.strip())
-                if(len(strippedData) == 4):
-                    startDate = datetime.strptime(
-                        strippedData[2], "%d %b %Y  %H:%M:%S")
-                    endDate = datetime.strptime(
-                        strippedData[3], "%d %b %Y  %H:%M:%S")
+                if(len(strippedData) == 5):
                     contest['code'] = strippedData[0]
                     contest['name'] = strippedData[1]
-                    contest['start_time'] = str(startDate)
-                    contest['end_time'] = str(endDate)
-                    contest['duration'] = str(endDate - startDate)
+                    startTime = datetime.strptime(
+                        strippedData[2], '%d %b %Y  %a %H:%M')
+                    contest['start_time'] = startTime.strftime(
+                        "%b/%d/%Y %H:%M")
+                    durationHrs = int(strippedData[3].split()[0])
+                    contest['duration'] = str(timedelta(
+                        hours=durationHrs, minutes=0, seconds=0))
+                    contest['end_time'] = (
+                        startTime + timedelta(hours=durationHrs)).strftime("%b/%d/%Y %H:%M")
                     contest['platform'] = "codechef"
-                    contest['id'] = "codechef_"+strippedData[0]
+                    contest['id'] = "codechef_" + strippedData[0]
                     contests.append(contest)
-                    return contests
+            return contests
         except:
             print('Error retrieving codechef details')
             return []
@@ -155,9 +163,35 @@ class ContestsRetreiver:
                     contest['end_time'] = str(startTime + timedelta(
                         hours=tempDate.hour, minutes=tempDate.minute, seconds=tempDate.second))
                     contest['platform'] = "codeforces"
-                    contest['id'] = "codeforces_"+strippedData[0].split()[2]
+                    contest['id'] = strippedData[0] + \
+                        strippedData[2].split()[0]
                     contests.append(contest)
-                    return contests
+            return contests
+        except:
+            print('Error retrieving codeforces details')
+            return []
+
+    def getContestsfromCodeforcesApi(self):
+        try:
+            URL = "https://codeforces.com/api/contest.list"
+            response = req.get(URL).json()
+            contests = []
+            for each in response["result"]:
+                if each["phase"] == "FINISHED":
+                    break
+                contest = {}
+                contest['name'] = each["name"]
+                contest['code'] = str(each["id"])
+                contest['start_time'] = datetime.fromtimestamp(
+                    each["startTimeSeconds"]).strftime("%b/%d/%Y %H:%M")
+                contest['duration'] = datetime.fromtimestamp(
+                    each["startTimeSeconds"]).strftime("%H:%M")
+                contest['end_time'] = datetime.fromtimestamp(
+                    each["startTimeSeconds"] + each["durationSeconds"]).strftime("%b/%d/%Y %H:%M")
+                contest['platform'] = "codeforces"
+                contest['id'] = 'codeforces_' + str(each["id"])
+                contests.append(contest)
+            return contests
         except:
             print('Error retrieving codeforces details')
             return []
