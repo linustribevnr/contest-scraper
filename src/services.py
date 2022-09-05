@@ -5,7 +5,9 @@ from PIL import Image, ImageFont, ImageDraw
 from dateutil import parser
 from datetime import datetime, timedelta
 from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 class ImageGenerator:
@@ -100,7 +102,7 @@ class ContestsRetreiver:
             # Opens the browser up in background, this was done since codechef API loads the data in tables after sometime.
             # in future CodeChef official API should be used.
             chrome_options.add_argument("--headless")
-            with Chrome(options=chrome_options) as browser:
+            with Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options) as browser:
                 browser.get(URL)
                 html = browser.page_source
             soup = bs(html, 'lxml')
@@ -195,3 +197,6 @@ class ContestsRetreiver:
         except:
             print('Error retrieving codeforces details')
             return []
+
+
+# print(ContestsRetreiver().getAllUpcomingContestDetails())

@@ -33,3 +33,4 @@ Werkzeug
 wrapt
 selenium
 urllib3
+webdriver-manager
