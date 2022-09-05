@@ -2,8 +2,8 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from . import router
-from .config import appConfig
+from src import router
+from src.config import appConfig
 
 db = SQLAlchemy()
 migrate = Migrate()
