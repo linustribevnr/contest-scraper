@@ -186,8 +186,11 @@ class ContestsRetreiver:
                 contest['code'] = str(each["id"])
                 contest['start_time'] = datetime.fromtimestamp(
                     each["startTimeSeconds"]).strftime("%b/%d/%Y %H:%M")
-                contest['duration'] = datetime.fromtimestamp(
-                    each["startTimeSeconds"]).strftime("%H:%M")
+                dur = str(timedelta(
+                    seconds=each["durationSeconds"]))
+                if len(dur) > 9:  # ,xx:xx:xx
+                    dur = dur[:-9]
+                contest['duration'] = dur
                 contest['end_time'] = datetime.fromtimestamp(
                     each["startTimeSeconds"] + each["durationSeconds"]).strftime("%b/%d/%Y %H:%M")
                 contest['platform'] = "codeforces"
