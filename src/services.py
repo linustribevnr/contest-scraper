@@ -75,11 +75,11 @@ class ContestsRetreiver:
         contestsJson = []
         codechefContests = self.getContestsfromCodechef()
         for contest in codechefContests:
-            if(datetime.now().date() == parser.parse(contest['start_time']).date()):
+            if ((datetime.now() + timedelta(hours=5.5)).date() == parser.parse(contest['start_time']).date()):
                 contestsJson.append(contest)
         codeforcesContests = self.getContestsfromCodeforcesApi()
         for contest in codeforcesContests:
-            if(datetime.now().date() == parser.parse(contest['start_time']).date()):
+            if((datetime.now() + timedelta(hours=5.5)).date() == parser.parse(contest['start_time']).date()):
                 contestsJson.append(contest)
 
         return contestsJson
@@ -208,4 +208,4 @@ class ContestsRetreiver:
             return []
 
 
-# print(ContestsRetreiver().getAllUpcomingContestDetails())
+print(ContestsRetreiver().getTodaysContestDetails())
