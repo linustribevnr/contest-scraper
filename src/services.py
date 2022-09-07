@@ -125,7 +125,7 @@ class ContestsRetreiver:
                         "%b/%d/%Y %H:%M")
                     durationHrs = int(strippedData[3].split()[0])
                     contest['duration'] = str(timedelta(
-                        hours=durationHrs, minutes=0, seconds=0))
+                        hours=durationHrs, minutes=0, seconds=0))[:-3]
                     contest['end_time'] = (
                         startTime + timedelta(hours=durationHrs)).strftime("%b/%d/%Y %H:%M")
                     contest['platform'] = "codechef"
@@ -163,7 +163,7 @@ class ContestsRetreiver:
                     contest['duration'] = str(timedelta(
                         hours=tempDate.hour, minutes=tempDate.minute, seconds=tempDate.second))
                     contest['end_time'] = str(startTime + timedelta(
-                        hours=tempDate.hour, minutes=tempDate.minute, seconds=tempDate.second))
+                        hours=tempDate.hour+8, minutes=tempDate.minute, seconds=tempDate.second))
                     contest['platform'] = "codeforces"
                     contest['id'] = strippedData[0] + \
                         strippedData[2].split()[0]
@@ -184,15 +184,18 @@ class ContestsRetreiver:
                 contest = {}
                 contest['name'] = each["name"]
                 contest['code'] = str(each["id"])
-                contest['start_time'] = datetime.fromtimestamp(
-                    each["startTimeSeconds"]).strftime("%b/%d/%Y %H:%M")
+                each["startTimeSeconds"] += 19800
+                contest['start_time'] = (datetime.fromtimestamp(
+                    each["startTimeSeconds"])).strftime("%b/%d/%Y %H:%M")
                 dur = str(timedelta(
                     seconds=each["durationSeconds"]))
-                if len(dur) > 9:  # ,xx:xx:xx
+                if len(dur) > 9:  # yx days,xx:xx:xx
                     dur = dur[:-9]
-                contest['duration'] = dur
-                contest['end_time'] = datetime.fromtimestamp(
-                    each["startTimeSeconds"] + each["durationSeconds"]).strftime("%b/%d/%Y %H:%M")
+                    contest['duration'] = dur
+                else:
+                    contest['duration'] = dur[:-3]
+                contest['end_time'] = (datetime.fromtimestamp(
+                    each["startTimeSeconds"] + each["durationSeconds"])).strftime("%b/%d/%Y %H:%M")
                 contest['platform'] = "codeforces"
                 contest['id'] = 'codeforces_' + str(each["id"])
                 contests.append(contest)
