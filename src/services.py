@@ -132,8 +132,8 @@ class ContestsRetreiver:
                     contest['id'] = "codechef_" + strippedData[0]
                     contests.append(contest)
             return contests
-        except:
-            print('Error retrieving codechef details')
+        except Exception as e:
+            print('Error retrieving codechef details: ', str(e))
             return []
 
     def getContestsfromCodeforces(self):
