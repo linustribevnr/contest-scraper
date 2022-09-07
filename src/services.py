@@ -101,8 +101,11 @@ class ContestsRetreiver:
             chrome_options = Options()
             # Opens the browser up in background, this was done since codechef API loads the data in tables after sometime.
             # in future CodeChef official API should be used.
-            chrome_options.add_argument("--headless")
-            with Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options) as browser:
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            with Chrome(service=Service(ChromeDriverManager().install()), chrome_options=chrome_options) as browser:
                 browser.get(URL)
                 html = browser.page_source
             soup = bs(html, 'lxml')
