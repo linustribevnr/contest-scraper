@@ -57,12 +57,12 @@ class ImageGenerator:
             durationList = timeDifference.split(" days, ")
             durationList = durationList[1]
         durationList = durationList.split(":")
-        if(durationList[0] != "00"):
+        print(durationList)
+        if durationList[0] != "0" and durationList[0] != "00":
+            print('ehyy')
             duration += str(durationList[0]) + " Hours "
-        if(durationList[1] != "00"):
+        if durationList[1] != "00" and durationList[0] != "00":
             duration += str(durationList[1]) + " Minutes "
-        if(durationList[2] != "00"):
-            duration += str(durationList[2]) + " Seconds"
         w, h = font.getsize("DURATION : " + duration)
         draw.text((((MAX_W - w) / 2), y_text+300), "DURATION : " +
                   str(duration), fill="white", font=font, align="right")
@@ -127,8 +127,10 @@ class ContestsRetreiver:
                     contest['start_time'] = startTime.strftime(
                         "%b/%d/%Y %H:%M")
                     durationHrs = int(strippedData[3].split()[0])
+                    if 'Long' in contest['name']:
+                        durationHrs *= 24
                     contest['duration'] = str(timedelta(
-                        hours=durationHrs, minutes=0, seconds=0))[:-3]
+                        hours=durationHrs, minutes=0, seconds=0))
                     contest['end_time'] = (
                         startTime + timedelta(hours=durationHrs)).strftime("%b/%d/%Y %H:%M")
                     contest['platform'] = "codechef"
@@ -208,4 +210,4 @@ class ContestsRetreiver:
             return []
 
 
-print(ContestsRetreiver().getTodaysContestDetails())
+# print(ContestsRetreiver().getTodaysContestDetails())
