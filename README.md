@@ -23,7 +23,7 @@ pip install -r requirements.txt
 
 ## Running
 ```
-python3 server.py
+python3 -m flask run
 ```
 This launches a simple local server for development.
 
