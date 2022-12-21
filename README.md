@@ -28,8 +28,8 @@ python3 -m flask run
 This launches a simple local server for development.
 
 ## Usage
-* GET /contests - fetches details of contests happening on that day
-* GET /allcontests - fetches the details all the upcoming contests
+* GET /contests : fetches details of contests happening on that day
+* GET /allcontests : fetches the details all the upcoming contests
 * POST /download?json=`<contest-data>` - generates the image representation of the contest details to post on instagram
 <img src="https://raw.githubusercontent.com/linustribevnr/contest-scraper/master/imgs/example.jpeg" alt="Example Image" width="250">
 
