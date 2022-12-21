@@ -28,7 +28,6 @@ six
 soupsieve
 SQLAlchemy
 toml
-typed-ast
 Werkzeug
 wrapt
 selenium

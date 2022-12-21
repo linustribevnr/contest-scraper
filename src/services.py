@@ -1,5 +1,8 @@
+import io
+import os
 import textwrap
 import requests as req
+import smtplib
 from bs4 import BeautifulSoup as bs
 from PIL import Image, ImageFont, ImageDraw
 from dateutil import parser
@@ -8,6 +11,14 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
+from flask import send_file
+from dotenv import load_dotenv, find_dotenv
+
+from src.models import Contest
 
 
 class ImageGenerator:
@@ -73,7 +84,7 @@ class ContestsRetreiver:
     def getTodaysContestDetails(self):
         # 2020-05-11 15:00:00
         contestsJson = []
-        codechefContests = self.getContestsfromCodechef()
+        codechefContests = self.getContestsfromCodechefApi()
         for contest in codechefContests:
             if ((datetime.now() + timedelta(hours=5.5)).date() == parser.parse(contest['start_time']).date()):
                 contestsJson.append(contest)
@@ -86,7 +97,7 @@ class ContestsRetreiver:
 
     def getAllUpcomingContestDetails(self):
         contestsJson = []
-        codechefContests = self.getContestsfromCodechef()
+        codechefContests = self.getContestsfromCodechefApi()
         for contest in codechefContests:
             contestsJson.append(contest)
         codeforcesContests = self.getContestsfromCodeforcesApi()
@@ -94,6 +105,35 @@ class ContestsRetreiver:
             contestsJson.append(contest)
 
         return contestsJson
+
+    def getContestsfromCodechefApi(self):
+        try:
+            URL = "https://www.codechef.com/api/list/contests/all?sort_by=START&sorting_order=asc&offset=0&mode=premium"
+            response = req.get(URL).json()
+            response_contests = response["present_contests"] + response["future_contests"]
+            contests = []
+            for each in response_contests:
+                contest = {}
+                contest['name'] = each["contest_name"]
+                contest['code'] = each["contest_code"]
+                if contest['code'] == 'GAMES':
+                    continue
+                contest['start_time'] = datetime.fromisoformat(each["contest_start_date_iso"]).strftime("%b/%d/%Y %H:%M") 
+                contest['end_time'] = datetime.fromisoformat(each["contest_end_date_iso"]).strftime("%b/%d/%Y %H:%M")
+                dur = str(timedelta(minutes=int(each['contest_duration'])))
+                if len(dur) > 9:  # yx days,xx:xx:xx
+                    dur = dur[:-9]
+                    contest['duration'] = dur
+                else:
+                    contest['duration'] = dur[:-3]
+                contest['platform'] = "codechef"
+                contest['id'] = 'codechef_' + str(each["contest_code"])
+                contests.append(contest)
+            return contests
+        except Exception as e:
+            print('Error retrieving codechef details', str(e))
+            return []
+
 
     def getContestsfromCodechef(self):
         try:
@@ -205,9 +245,55 @@ class ContestsRetreiver:
                 contest['id'] = 'codeforces_' + str(each["id"])
                 contests.append(contest)
             return contests
-        except:
-            print('Error retrieving codeforces details')
+        except Exception as e:
+            print('Error retrieving codeforces details', e)
             return []
 
 
-# print(ContestsRetreiver().getTodaysContestDetails())
+def getTodaysImages():
+    images = []
+    reteriver = ContestsRetreiver()
+    contests = reteriver.getAllUpcomingContestDetails()
+    imageGenerator = ImageGenerator()
+    for contest in contests:
+        generatedImage = imageGenerator.generateImage(Contest.fromJson(contest))
+        imageIO = io.BytesIO()
+        generatedImage.save(imageIO, 'JPEG', quality=100)
+        imageIO.seek(0)
+        images.append(imageIO)
+    return images
+
+def mailTodaysContests(send_from, send_to):
+    images = getTodaysImages()
+
+    if len(images) == 0:
+        return
+
+    smtp = smtplib.SMTP('smtp.gmail.com', 587)
+    smtp.starttls()
+    
+    load_dotenv(find_dotenv())
+    smtp.login('khssupriya@gmail.com', os.environ.get("CONTESTSCRAPERPASSWORD"))
+
+    msg = MIMEMultipart()
+    msg['From'] = send_from
+    msg['To'] = COMMASPACE.join(send_to)
+    msg['Date'] = formatdate(localtime=True)
+    msg['Subject'] = "Contest Details For Instagram Story"
+
+    msg.attach(MIMEText("Find attachments"))
+
+    for i, image in enumerate(images):
+        part = MIMEApplication(
+            image.read(),
+            Name='contest' + str(i) + '.jpeg'
+        )
+        part['Content-Disposition'] = 'attachment; filename=contest' + \
+            str(i) + '.jpeg'
+        msg.attach(part)
+
+    smtp.sendmail(send_from, send_to, msg.as_string())
+
+
+
+# mailTodaysContests('khssupriya@gmail.com', ['contest-scraper-instagram@googlegroups.com'])
