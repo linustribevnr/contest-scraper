@@ -1,24 +1,10 @@
 import io
-import os
 import textwrap
 import requests as req
-import smtplib
 from bs4 import BeautifulSoup as bs
 from PIL import Image, ImageFont, ImageDraw
 from dateutil import parser
 from datetime import datetime, timedelta
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import COMMASPACE, formatdate
-from flask import send_file
-from dotenv import load_dotenv, find_dotenv
-
-from src.models import Contest
 
 
 class ImageGenerator:
@@ -134,90 +120,6 @@ class ContestsRetreiver:
             print('Error retrieving codechef details', str(e))
             return []
 
-
-    def getContestsfromCodechef(self):
-        try:
-            URL = "https://www.codechef.com/contests"
-            chrome_options = Options()
-            # Opens the browser up in background, this was done since codechef API loads the data in tables after sometime.
-            # in future CodeChef official API should be used.
-            chrome_options = Options()
-            chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            with Chrome(service=Service(ChromeDriverManager().install()), chrome_options=chrome_options) as browser:
-                browser.get(URL)
-                html = browser.page_source
-            soup = bs(html, 'lxml')
-            allTables = soup.find_all('table', attrs={'class': 'dataTable'})
-            presentTables = allTables[1]  # Present table is the second one
-            contests = []
-            allRows = presentTables.find_all('tr')
-            for row in allRows:
-                contest = {}
-                strippedData = []
-                datas = row.find_all('td')
-                for data in datas:
-                    strippedData.append(data.text.strip())
-                if(len(strippedData) == 5):
-                    contest['code'] = strippedData[0]
-                    contest['name'] = strippedData[1]
-                    startTime = datetime.strptime(
-                        strippedData[2], '%d %b %Y  %a %H:%M')
-                    contest['start_time'] = startTime.strftime(
-                        "%b/%d/%Y %H:%M")
-                    durationHrs = int(strippedData[3].split()[0])
-                    if 'Long' in contest['name']:
-                        durationHrs *= 24
-                    contest['duration'] = str(timedelta(
-                        hours=durationHrs, minutes=0, seconds=0))
-                    contest['end_time'] = (
-                        startTime + timedelta(hours=durationHrs)).strftime("%b/%d/%Y %H:%M")
-                    contest['platform'] = "codechef"
-                    contest['id'] = "codechef_" + strippedData[0]
-                    contests.append(contest)
-            return contests
-        except Exception as e:
-            print('Error retrieving codechef details: ', str(e))
-            return []
-
-    def getContestsfromCodeforces(self):
-        try:
-            URL = "http://codeforces.com/contests"
-            soup = bs(req.get(URL).content, 'lxml')
-            allTables = soup.find_all('div', attrs={'class': 'datatable'})
-            presentTables = allTables[0]  # Present table is the first one
-            contests = []
-            allRows = presentTables.find_all('tr')
-            for row in allRows:
-                contest = {}
-                strippedData = []
-                datas = row.find_all('td')
-                for data in datas:
-                    strippedData.append(data.text.strip())
-                if(len(strippedData) == 6):
-                    startTime = datetime.strptime(
-                        strippedData[2], "%b/%d/%Y %H:%M")
-                    startTime = startTime + timedelta(hours=2, minutes=30)
-                    contest['name'] = strippedData[0]
-                    contest['code'] = strippedData[0].split()[2]
-                    contest['start_time'] = str(startTime)
-                    if(len(strippedData[3]) != 5):
-                        strippedData[3] = strippedData[3].split(':', 1)[1]
-                    tempDate = datetime.strptime(strippedData[3], "%H:%M")
-                    contest['duration'] = str(timedelta(
-                        hours=tempDate.hour, minutes=tempDate.minute, seconds=tempDate.second))
-                    contest['end_time'] = str(startTime + timedelta(
-                        hours=tempDate.hour+8, minutes=tempDate.minute, seconds=tempDate.second))
-                    contest['platform'] = "codeforces"
-                    contest['id'] = strippedData[0] + \
-                        strippedData[2].split()[0]
-                    contests.append(contest)
-            return contests
-        except:
-            print('Error retrieving codeforces details')
-            return []
-
     def getContestsfromCodeforcesApi(self):
         try:
             URL = "https://codeforces.com/api/contest.list"
@@ -248,52 +150,3 @@ class ContestsRetreiver:
         except Exception as e:
             print('Error retrieving codeforces details', e)
             return []
-
-
-def getTodaysImages():
-    images = []
-    reteriver = ContestsRetreiver()
-    contests = reteriver.getAllUpcomingContestDetails()
-    imageGenerator = ImageGenerator()
-    for contest in contests:
-        generatedImage = imageGenerator.generateImage(Contest.fromJson(contest))
-        imageIO = io.BytesIO()
-        generatedImage.save(imageIO, 'JPEG', quality=100)
-        imageIO.seek(0)
-        images.append(imageIO)
-    return images
-
-def mailTodaysContests(send_from, send_to):
-    images = getTodaysImages()
-
-    if len(images) == 0:
-        return
-
-    smtp = smtplib.SMTP('smtp.gmail.com', 587)
-    smtp.starttls()
-    
-    load_dotenv(find_dotenv())
-    smtp.login('khssupriya@gmail.com', os.environ.get("CONTESTSCRAPERPASSWORD"))
-
-    msg = MIMEMultipart()
-    msg['From'] = send_from
-    msg['To'] = COMMASPACE.join(send_to)
-    msg['Date'] = formatdate(localtime=True)
-    msg['Subject'] = "Contest Details For Instagram Story"
-
-    msg.attach(MIMEText("Find attachments"))
-
-    for i, image in enumerate(images):
-        part = MIMEApplication(
-            image.read(),
-            Name='contest' + str(i) + '.jpeg'
-        )
-        part['Content-Disposition'] = 'attachment; filename=contest' + \
-            str(i) + '.jpeg'
-        msg.attach(part)
-
-    smtp.sendmail(send_from, send_to, msg.as_string())
-
-
-
-# mailTodaysContests('khssupriya@gmail.com', ['contest-scraper-instagram@googlegroups.com'])
